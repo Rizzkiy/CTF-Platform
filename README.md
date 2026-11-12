@@ -88,8 +88,8 @@ Stack ini terdiri dari 6 service container:
 
 1. **Clone repositori ini:**
    ```bash
-   git clone https://github.com/<username>/<repo-name>.git
-   cd <repo-name>
+   git clone https://github.com/Rizzkiy/CTF-Platform.git
+   cd CTF-Platform
    ```
 
 2. **Jalankan container:**
