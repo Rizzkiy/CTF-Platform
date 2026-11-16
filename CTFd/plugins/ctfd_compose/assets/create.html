@@ -1,0 +1,90 @@
+{% extends "admin/challenges/create.html" %}
+
+{% block header %}
+<div class="alert alert-info" role="alert">
+    <strong><i class="fas fa-cubes me-1"></i> Dynamic Docker Compose Challenge</strong><br>
+    Each player gets an isolated, per-challenge container instance launched directly via <code>docker compose</code>.
+    The challenge source must be placed in a directory under <code>/challenges</code> containing a <code>docker-compose.yml</code>.
+</div>
+{% endblock %}
+
+{% block type %}
+<input type="hidden" value="compose" name="type" id="chaltype">
+
+<div class="form-group mb-3">
+    <label for="compose_dir"><strong>Compose Directory</strong><br>
+        <small class="form-text text-muted">
+            Directory inside <code>/challenges/</code> containing the <code>docker-compose.yml</code> file.
+        </small>
+    </label>
+    <div class="input-group">
+        <select class="form-select" id="compose_dir_select" style="max-width: 250px;">
+            <option value="">-- Choose directory --</option>
+        </select>
+        <input type="text" class="form-control" name="compose_dir" id="compose_dir" placeholder="e.g. web_sample" required>
+    </div>
+</div>
+
+<div class="form-group mb-3">
+    <label for="service_port"><strong>Service Port (Internal Container Port)</strong><br>
+        <small class="form-text text-muted">
+            The port exposed by your service inside the container (e.g. <code>80</code> for web, <code>1337</code> for pwn/nc).
+        </small>
+    </label>
+    <input type="number" class="form-control" name="service_port" id="service_port" value="80" required>
+</div>
+
+<div class="form-group mb-3">
+    <label for="redirect_type"><strong>Connection Protocol</strong><br>
+        <small class="form-text text-muted">
+            Choose HTTP (clickable browser link) or Direct/NC (TCP netcat command).
+        </small>
+    </label>
+    <select class="form-select" name="redirect_type" id="redirect_type">
+        <option value="http" selected>HTTP (http://host:port)</option>
+        <option value="direct">Direct / Netcat (nc host port)</option>
+    </select>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-group mb-3">
+            <label for="timeout"><strong>Container Lifetime (seconds)</strong><br>
+                <small class="form-text text-muted">
+                    Time before container is automatically destroyed (e.g. 1200 = 20 mins).
+                </small>
+            </label>
+            <input type="number" class="form-control" name="timeout" id="timeout" value="1200" required>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-group mb-3">
+            <label for="max_renew"><strong>Max Extensions (Renewals)</strong><br>
+                <small class="form-text text-muted">
+                    Maximum number of times a player can extend container time.
+                </small>
+            </label>
+            <input type="number" class="form-control" name="max_renew" id="max_renew" value="3" required>
+        </div>
+    </div>
+</div>
+
+<div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" name="dynamic_flag" id="dynamic_flag" value="1" checked>
+    <label class="form-check-label" for="dynamic_flag">
+        <strong>Dynamic Flag per Container</strong><br>
+        <small class="form-text text-muted">
+            If checked, a random unique flag is generated per container instance and passed via the <code>${FLAG}</code> environment variable.
+        </small>
+    </label>
+</div>
+
+<div class="form-group mb-3" id="flag_template_group">
+    <label for="flag_template"><strong>Dynamic Flag Template</strong><br>
+        <small class="form-text text-muted">
+            The flag pattern. <code>{token}</code> will be replaced with a random hex string.
+        </small>
+    </label>
+    <input type="text" class="form-control" name="flag_template" id="flag_template" value="CTF{compose_{token}}">
+</div>
+{% endblock %}

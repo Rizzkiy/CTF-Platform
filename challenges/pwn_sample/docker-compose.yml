@@ -1,0 +1,7 @@
+services:
+  chall:
+    build: .
+    ports:
+      - "${PORT}:1337"
+    environment:
+      - FLAG=${FLAG}
