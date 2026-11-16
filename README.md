@@ -1,205 +1,201 @@
-# 🐳 CTFd + CTFd-Whale (Out-of-the-Box Edition)
+# 🚀 CTFd + CTFd-Compose (Dynamic Docker Compose Platform)
 
 [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-Ready-blue?logo=docker)](https://docs.docker.com/compose/)
 [![CTFd Version](https://img.shields.io/badge/CTFd-v3.7+-red.svg?logo=ctfd)](https://github.com/CTFd/CTFd)
-[![CTFd-Whale](https://img.shields.io/badge/Plugin-CTFd--Whale-0db7ed.svg?logo=docker)](https://github.com/frankli0324/ctfd-whale)
+[![Plugin](https://img.shields.io/badge/Plugin-CTFd--Compose-0db7ed.svg?logo=docker)](CTFd/plugins/ctfd_compose)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
-> **Solusi All-in-One CTFd + CTFd-Whale siap pakai!**
+> **Solusi All-in-One CTF Platform dengan Dynamic Docker Container berbasis `docker-compose.yml`!**
 > 
-> Dibuat khusus bagi Anda yang **mager setup manual dari nol**. Setup CTFd bersama CTFd-Whale dari awal biasanya memakan waktu berjam-jam karena sering tersangkut masalah konfigurasi: race condition Docker Swarm overlay network, error perizinan Docker socket, dependensi Python 3.11 yang bentrok, hingga sinkronisasi Fast Reverse Proxy (FRP).
+> Capek dan pusing setup **CTFd-Whale** yang ribet karena harus Docker Swarm, routing FRP client-server, overlay network yang sering hilang, dan konfigurasi template rumit?
 > 
-> Repositori ini menggabungkan dan menyelaraskan seluruh komponen tersebut sehingga Anda cukup menjalankan **`docker compose up -d`** dan semuanya langsung berjalan normal!
+> Proyek ini menghadirkan **`ctfd_compose`** — plugin modern dan sederhana untuk men-deploy dynamic container per-pemain langsung dari folder berisi file **`docker-compose.yml`**! Anda tinggal meletakkan folder soal di `challenges/<nama_soal>/` dan CTFd akan otomatis mengatur deployment via `docker compose`.
+> 
+> Cocok untuk Anda yang **mager setup dari nol**: tinggal jalankan **`docker compose up -d --build`** dan platform langsung siap digunakan!
 
 ---
 
 ## 📌 Daftar Isi
-- [Keunggulan Repositori Ini](#-keunggulan-repositori-ini)
-- [Arsitektur & Komponen](#-arsitektur--komponen)
-- [Prasyarat Sistem](#-prasyarat-sistem)
+- [Kenapa Beralih dari CTFd-Whale ke CTFd-Compose?](#-kenapa-beralih-dari-ctfd-whale-ke-ctfd-compose)
+- [Fitur Utama](#-fitur-utama)
+- [Arsitektur Sistem](#-arsitektur-sistem)
 - [Cara Menjalankan (Quick Start)](#-cara-menjalankan-quick-start)
-- [Akses Layanan](#-akses-layanan)
-- [Panduan Membuat Soal Dynamic Docker](#-panduan-membuat-soal-dynamic-docker)
-  - [1. Soal Web (HTTP Subdomain)](#1-soal-web-http-subdomain)
-  - [2. Soal Binary / Pwn (Direct TCP / Netcat)](#2-soal-binary--pwn-direct-tcp--netcat)
+- [Panduan Membuat Soal Baru](#-panduan-membuat-soal-baru)
+  - [1. Struktur Folder Soal](#1-struktur-folder-soal)
+  - [2. Contoh Soal Web (HTTP)](#2-contoh-soal-web-http)
+  - [3. Contoh Soal Pwn / Netcat (TCP)](#3-contoh-soal-pwn--netcat-tcp)
+  - [4. Mendaftarkan Soal di Admin CTFd](#4-mendaftarkan-soal-di-admin-ctfd)
+- [Fitur Admin Dashboard](#-fitur-admin-dashboard)
 - [Cara Reset Total (Fresh Install)](#-cara-reset-total-fresh-install)
-- [Troubleshooting & FAQ](#-troubleshooting--faq)
-- [Credits](#-credits)
+- [Lisensi](#-lisensi)
 
 ---
 
-## 🚀 Keunggulan Repositori Ini
+## 💡 Kenapa Beralih dari CTFd-Whale ke CTFd-Compose?
 
-* ✅ **Zero-Config FRP:** FRP Server (`frps`) dan FRP Client (`frpc`) sudah saling terhubung dan tersambung otomatis ke API CTFd-Whale.
-* ✅ **Python 3.11 Compatible:** Library `docker`, `Flask-APScheduler`, dan `flask-redis` pada plugin sudah di-patch agar tidak bentrok dengan `redis-py` milik core CTFd.
-* ✅ **Docker Swarm Overlay Ready:** Konfigurasi network `ctfd_containers` sudah diproteksi agar tidak memicu race condition *"network not found"* pada Docker Engine terbaru.
-* ✅ **Root Docker Socket Access:** Service CTFd sudah dikonfigurasi untuk dapat membaca `/var/run/docker.sock` host tanpa masalah permission.
-* ✅ **One-Click Clean Slate:** Disediakan script `./reset.sh` untuk menghapus bersih seluruh database dan cache saat ingin mengadakan kompetisi baru dari nol.
+| Fitur | CTFd-Whale 🐳 | CTFd-Compose 🚀 (Repositori Ini) |
+|---|---|---|
+| **Format Soal** | Harus Dockerfile terpisah & image registry | Cukup folder dengan **`docker-compose.yml`** |
+| **Docker Swarm** | **Wajib** (Sering error overlay network & label) | **Tidak butuh Swarm** (Docker standalone biasa) |
+| **FRP / Proxy** | Wajib setup FRPS & FRPC + token rahasia | **Direct Port Mapping** (Lebih cepat & stabil) |
+| **Rebuild Soal** | Sulit, harus push ke registry lagi | **1 Klik Rebuild** (`docker compose up -d --build`) |
+| **Restart Container** | Manual via docker service cli | **1 Klik Restart** langsung dari Admin Panel |
+| **Auto Cleanup** | Mengandalkan scheduler complex | **Background Worker** otomatis hapus container expired |
 
 ---
 
-## 🏗 Arsitektur & Komponen
+## ✨ Fitur Utama
+
+* 🎮 **Kontrol Pemain Lengkap:**
+  * **Launch Instance:** Menjalankan instance baru via `docker compose up -d`.
+  * **Timer & Countdown:** Menampilkan waktu hitung mundur durasi kontainer secara realtime.
+  * **Renew Time:** Menambah durasi waktu aktif container (misal +10 menit) dengan batas maksimal yang dapat diatur admin.
+  * **Destroy Instance:** Menghentikan dan menghapus container + volume (`docker compose down -v`).
+* 🚩 **Dynamic Flag Otomatis:**
+  * Flag unik dihasilkan secara dinamis untuk setiap kontainer yang dibuat.
+  * Flag di-inject ke dalam kontainer melalui environment variable `${FLAG}`.
+  * CTFd memverifikasi flag secara otomatis saat pemain melakukan submit.
+* 🔌 **Port Host Otomatis:**
+  * Port host (rentang 30000–40000) dialokasikan otomatis dan di-inject via variable `${PORT}`.
+* 🛠 **Admin Management Dashboard:**
+  * Halaman `/admin/compose` di admin panel untuk memonitor semua container yang sedang aktif.
+  * Tombol **Restart**, **Rebuild & Start**, dan **Force Destroy**.
+  * Otomatis mendeteksi folder-folder soal yang tersedia di direktori `challenges/`.
+* 🧹 **Auto-Expiry Cleanup:**
+  * Background worker yang otomatis memeriksa kontainer kadaluarsa dan membersihkannya tanpa membebani server.
+
+---
+
+## 🏗 Arsitektur Sistem
 
 ```
-                  [ Player Browser / Terminal ]
-                                |
-        +-----------------------+-----------------------+
-        | Port 80 / 8000                                | Port 8080 (HTTP)
-        v                                               | Port 10000-10100 (TCP)
-   [ Nginx / CTFd ]                                     v
-        |                                            [ frps ]
-        | (Manages DB & Containers via Docker Sock)     |
-        v                                               | (Tunneling)
-  [ CTFd-Whale ] <--- API (Port 7400) ---> [ frpc ] <---+
-        |                                     |
-        | (Spawns Services via Swarm)         | (Routes Traffic)
-        v                                     v
-  +-----------------------------------------------------+
-  |               ctfd_containers Network               |
-  |  [ Chall Container #1 ]    [ Chall Container #2 ]  |
-  +-----------------------------------------------------+
+                     [ Pemain (Browser / Netcat) ]
+                                   |
+         +-------------------------+-------------------------+
+         |                                                   |
+         v (Port 80 / 8000)                                  v (Port 30000 - 40000)
+    [ Nginx / CTFd ]                                   [ Host Docker Engine ]
+         |                                                   |
+         | (Mount /var/run/docker.sock)                      | (Isolated Containers)
+         v                                                   v
+   [ Plugin ctfd_compose ] ---- docker compose ----> [ Chall Instance User A ]
+   (DB: MariaDB & Cache: Redis)                      [ Chall Instance User B ]
 ```
-
-Stack ini terdiri dari 6 service container:
-1. **`ctfd`**: Web application CTFd utama (Flask, Gunicorn).
-2. **`ctfd-whale`**: Plugin dynamic challenge container di dalam CTFd.
-3. **`db`**: MariaDB 10.11 sebagai database penyimpanan soal, user, dan flag.
-4. **`cache`**: Redis 4 untuk caching sesi dan lock container.
-5. **`nginx`**: Web server reverse-proxy untuk port HTTP 80.
-6. **`frps` & `frpc`**: Fast Reverse Proxy untuk memetakan port/subdomain soal dynamic ke pemain secara terisolasi.
-
----
-
-## ⚙️ Prasyarat Sistem
-
-1. **Docker Engine & Docker Compose v2** terpasang di host Linux Anda.
-2. **Inisialisasi Docker Swarm** (CTFd-Whale menggunakan API Swarm untuk scheduling container):
-   ```bash
-   docker swarm init
-   ```
-3. **Beri label node manager** (Whale membutuhkan label `name=linux-1` untuk penempatan container):
-   ```bash
-   docker node update --label-add "name=linux-1" $(docker node ls -q)
-   ```
 
 ---
 
 ## 🏁 Cara Menjalankan (Quick Start)
 
-1. **Clone repositori ini:**
+1. **Pastikan Docker dan Docker Compose sudah terpasang di host Linux Anda.**
+   Tidak perlu menginisialisasi Docker Swarm!
+
+2. **Clone repositori ini:**
    ```bash
-   git clone https://github.com/<username>/<repo-name>.git
-   cd <repo-name>
+   git clone https://github.com/Rizzkiy/CTF-Platform.git
+   cd CTF-Platform
    ```
 
-2. **Jalankan container:**
+3. **Jalankan platform:**
    ```bash
-   docker compose up -d
+   docker compose up -d --build
    ```
-   *(Jika pertama kali atau ingin re-build image CTFd, gunakan: `docker compose up -d --build`)*
 
-3. **Cek status container:**
-   ```bash
-   docker compose ps
-   ```
-   Semua container (`ctfd`, `nginx`, `db`, `cache`, `frps`, `frpc`) harus berstatus **Up**.
+4. **Buka browser:**
+   * Akses CTFd di: **`http://localhost`** (atau `http://IP-SERVER-ANDA`)
+   * Ikuti wizard setup awal (masukkan nama event, buat akun admin).
 
 ---
 
-## 🌐 Akses Layanan
+## 📦 Panduan Membuat Soal Baru
 
-| Layanan | Alamat / URL | Keterangan |
-| :--- | :--- | :--- |
-| **CTFd Web UI (Nginx)** | `http://localhost` (Port 80) | Akses utama untuk peserta & admin |
-| **CTFd Direct Port** | `http://localhost:8000` | Akses langsung ke service Flask/Gunicorn |
-| **Dynamic Challenge HTTP** | `http://<uuid>.127.0.0.1.nip.io:8080` | URL soal web otomatis via FRP |
-| **Dynamic Challenge TCP** | `nc 127.0.0.1 <port>` | Rentang port `10000` - `10100` untuk soal Pwn/Binary |
+### 1. Struktur Folder Soal
+Semua soal diletakkan di dalam folder `challenges/<nama_soal>/`.
 
-### Verifikasi Awal
-1. Buka browser ke **`http://localhost`** dan selesaikan setup akun admin pertama Anda.
-2. Masuk ke **Admin Panel** $\rightarrow$ **Plugins** $\rightarrow$ **Whale**.
-3. Pastikan semua indikator self-check (Docker connection, Swarm node, Frp API) menampilkan status **Available** tanpa tanda error.
+Contoh struktur direktori:
+```
+challenges/
+├── web_sample/
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   └── index.php
+└── pwn_sample/
+    ├── docker-compose.yml
+    ├── Dockerfile
+    └── server.py
+```
+
+### 2. Contoh Soal Web (HTTP)
+Buat file `challenges/web_sample/docker-compose.yml`:
+```yaml
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT}:80"
+    environment:
+      - FLAG=${FLAG}
+```
+* **`${PORT}`**: Port host dinamis yang disediakan oleh CTFd.
+* **`${FLAG}`**: Flag dinamis yang di-generate CTFd untuk pemain tersebut.
+
+### 3. Contoh Soal Pwn / Netcat (TCP)
+Buat file `challenges/pwn_sample/docker-compose.yml`:
+```yaml
+services:
+  chall:
+    build: .
+    ports:
+      - "${PORT}:1337"
+    environment:
+      - FLAG=${FLAG}
+```
+
+### 4. Mendaftarkan Soal di Admin CTFd
+1. Masuk ke **Admin Panel** CTFd.
+2. Klik **Challenges** -> **+ Create Challenge**.
+3. Pilih tipe challenge: **`compose`**.
+4. Isi form:
+   * **Name**: Nama Soal (misal: *Easy Web Login*)
+   * **Category**: Web / Pwn / Misc
+   * **Compose Directory**: Pilih dari dropdown atau ketik nama folder di dalam `challenges/` (misal: `web_sample`).
+   * **Service Port**: Port internal container (misal: `80` untuk web, `1337` untuk nc).
+   * **Connection Protocol**: Pilih `HTTP` (link browser) atau `Direct / Netcat` (`nc host port`).
+   * **Container Lifetime**: Durasi container aktif dalam detik (default `1200` = 20 menit).
+   * **Max Extensions**: Batas perpanjangan waktu (default `3` kali).
+   * **Dynamic Flag per Container**: Centang untuk mengaktifkan flag dinamis per-pemain.
+   * **Dynamic Flag Template**: Pola flag, contoh: `CTF{compose_{token}}`.
+5. Klik **Create** dan atur status menjadi **Visible**.
+6. Selesai! Saat pemain membuka soal, akan muncul tombol **🚀 Launch Instance**.
 
 ---
 
-## 🎯 Panduan Membuat Soal Dynamic Docker
+## 🛡 Fitur Admin Dashboard
 
-Masuk ke **Admin Panel** $\rightarrow$ **Challenges** $\rightarrow$ klik tombol **`+`** (New Challenge), lalu pilih tipe **`dynamic_docker`**.
-
-### 1. Soal Web (HTTP Subdomain)
-* **Name**: Nama Challenge (misal: *Simple Web Exploitation*)
-* **Category**: `web`
-* **Docker Image**: Image Docker publik atau lokal (misal: `ctftraining/qwb_2019_smarthome`)
-* **Redirect Type**: Pilih **`HTTP`**
-* **Redirect Port**: Port web server di dalam container (biasanya **`80`**)
-* **Initial / Minimum / Decay**: Konfigurasi dynamic score CTFd
-* **Memory Limit**: `128m` (sesuaikan kebutuhan)
-* **CPU Limit**: `0.5`
-
-> **Akses Peserta:** Ketika peserta menekan tombol **Start Container**, Whale akan memberikan tautan otomatis dengan subdomain acak, misalnya:  
-> `http://a1b2c3d4-e5f6-7890.127.0.0.1.nip.io:8080`
-
----
-
-### 2. Soal Binary / Pwn (Direct TCP / Netcat)
-* **Name**: Nama Challenge (misal: *Ret2Libc Warmup*)
-* **Category**: `pwn`
-* **Docker Image**: Image Docker soal Anda
-* **Redirect Type**: Pilih **`Direct`**
-* **Redirect Port**: Port internal service binary (misal: `9999` atau `1337`)
-
-> **Akses Peserta:** Ketika peserta menekan tombol **Start Container**, Whale akan menampilkan perintah Netcat:  
-> `nc 127.0.0.1 10005` (port acak pada rentang 10000–10100)
+Di navbar Admin Panel, terdapat menu **`Compose Containers`** (`/admin/compose`):
+* Menampilkan jumlah seluruh kontainer aktif secara realtime.
+* Daftar folder soal yang terdeteksi di `challenges/`.
+* Tabel kontainer aktif:
+  * Pemain yang menjalankan
+  * Soal terkait & folder compose
+  * Port host yang digunakan
+  * Flag yang di-generate
+  * Sisa waktu aktif
+  * Tombol aksi:
+    * 🔄 **Restart**: Menjalankan `docker compose restart`.
+    * 🔨 **Rebuild**: Menjalankan `docker compose up -d --build`.
+    * 🗑 **Destroy**: Menghapus container seketika.
 
 ---
 
 ## 🧹 Cara Reset Total (Fresh Install)
 
-Jika kompetisi sudah selesai atau Anda ingin membersihkan seluruh data (akun admin, user, submissions, cache) kembali ke halaman `/setup` awal:
-
-Cukup jalankan script pembersih yang sudah disediakan:
+Jika ingin membersihkan seluruh data (database kompetisi, sesi, dan sisa container) untuk memulai event baru:
 ```bash
 ./reset.sh
+docker compose up -d --build
 ```
 
-Script ini akan:
-1. Mematikan seluruh container & volume compose (`docker compose down -v`).
-2. Menghapus folder bind-mount database & cache (`sudo rm -rf .data`).
-3. Menghapus file secret key (`.ctfd_secret_key`).
-4. Membersihkan sisa container soal Swarm yang masih berjalan.
-
-Setelah reset, cukup jalankan kembali `docker compose up -d`.
-
 ---
 
-## ❓ Troubleshooting & FAQ
-
-#### 1. Frpc error: *"login to server failed / connection refused"*
-* Pastikan container `ctfd-frps-1` sudah menyala dan port `7000` di network internal tidak diblokir.
-* Di setup ini, `frpc` memiliki `depends_on: [frps]` sehingga otomatis menunggu server menyala terlebih dahulu.
-
-#### 2. Error: *"This node is not a swarm manager"*
-* Swarm belum diinisialisasi pada Docker host. Jalankan:
-  ```bash
-  docker swarm init
-  ```
-
-#### 3. Error: *"No Suitable Nodes"* saat peserta start container
-* Node Docker belum diberi label yang sesuai. Jalankan:
-  ```bash
-  docker node update --label-add "name=linux-1" $(docker node ls -q)
-  ```
-
-#### 4. Mengganti Domain Publik (VPS / Server Online)
-Jika ingin mendeploy di VPS atau server ber-domain publik (bukan localhost):
-* Edit file `docker-compose.yml` pada bagian service `frps`:
-  Ganti `--subdomain_host=127.0.0.1.nip.io` dengan domain Anda (misal: `--subdomain_host=ctf.domainanda.com`).
-* Buka pengaturan **Admin Panel** $\rightarrow$ **Plugins** $\rightarrow$ **Whale** $\rightarrow$ **Router**, lalu sesuaikan `Frp HTTP Domain Suffix` dan `Frp Direct IP Address` dengan domain/IP publik VPS Anda.
-
----
-
-## 📄 Credits
-
-* [CTFd](https://github.com/CTFd/CTFd) - Capture The Flag framework by Kevin Chung and the CTFd community.
-* [ctfd-whale](https://github.com/frankli0324/ctfd-whale) - Dynamic docker challenge plugin by Frank Li (`frankli0324`).
-* [fatedier/frp](https://github.com/fatedier/frp) - Fast Reverse Proxy.
+## 📄 Lisensi
+CTFd dilisensikan di bawah lisensi Apache 2.0. Plugin `ctfd_compose` dibuat sebagai solusi dynamic challenge berbasis Docker Compose.

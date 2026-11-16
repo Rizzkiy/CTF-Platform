@@ -4,7 +4,7 @@ services:
     user: root
     restart: always
     ports:
-      - "8000:8000"
+      - "8008:8000"
     environment:
       - UPLOAD_FOLDER=/var/uploads
       - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
@@ -14,10 +14,12 @@ services:
       - ACCESS_LOG=-
       - ERROR_LOG=-
       - REVERSE_PROXY=true
+      - CHALLENGES_DIR=/challenges
     volumes:
       - .data/CTFd/logs:/var/log/CTFd
       - .data/CTFd/uploads:/var/uploads
       - .:/opt/CTFd:ro
+      - ./challenges:/challenges
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       permissions:
@@ -73,48 +75,7 @@ services:
     networks:
       internal:
 
-  frps:
-    image: frankli0324/frp:frps
-    restart: always
-    command: [
-      "--bind_addr=0.0.0.0",
-      "--bind_port=7000",
-      "--token=ctfd_whale_secret_token_2026",
-      "--subdomain_host=127.0.0.1.nip.io",
-      "--vhost_http_port=8080",
-    ]
-    ports:
-      - "8080:8080"
-      - "10000-10100:10000-10100"
-    networks:
-      default:
-      frp:
-
-  frpc:
-    image: frankli0324/frp:frpc
-    restart: always
-    command: [
-      "--server_addr=frps",
-      "--server_port=7000",
-      "--token=ctfd_whale_secret_token_2026",
-      "--admin_addr=0.0.0.0",
-      "--admin_port=7400",
-      "--admin_user=admin",
-      "--admin_pwd=adminpassword",
-    ]
-    depends_on:
-      - frps
-    networks:
-      frp:
-      internal:
-      containers:
-
 networks:
   default:
   internal:
     internal: true
-  frp:
-    internal: true
-  containers:
-    external: true
-    name: ctfd_containers

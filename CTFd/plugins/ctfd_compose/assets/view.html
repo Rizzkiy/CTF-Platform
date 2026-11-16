@@ -1,0 +1,62 @@
+{% extends "challenge.html" %}
+
+{% block description %}
+{{ challenge.html }}
+
+<div class="row pt-3">
+    <div class="col-12">
+        <div class="card border-primary-subtle shadow-sm mb-3" id="compose-panel">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold"><i class="fas fa-server me-1"></i> Container Instance</span>
+                <span id="compose-badge" class="badge bg-light text-dark">Checking...</span>
+            </div>
+            <div class="card-body">
+                <!-- Loading State -->
+                <div id="compose-loading" class="text-center py-3" style="display: none;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted fw-semibold" id="compose-loading-text">Working on container...</span>
+                </div>
+
+                <!-- Stopped / No Container State -->
+                <div id="compose-stopped" class="text-center py-2">
+                    <p class="text-muted small mb-3">Launch a private, dedicated container instance for this challenge.</p>
+                    <button class="btn btn-primary px-4 shadow-sm" id="compose-btn-start" type="button" onclick="CTFd._internal.challenge.startContainer()">
+                        <i class="fas fa-play me-1"></i> Launch Instance
+                    </button>
+                </div>
+
+                <!-- Running Container State -->
+                <div id="compose-running" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Connection Details:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control font-monospace" id="compose-connection-input" readonly>
+                            <button class="btn btn-outline-secondary" type="button" id="compose-btn-copy" onclick="CTFd._internal.challenge.copyConn()" title="Copy to clipboard">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <a href="#" class="btn btn-outline-primary" id="compose-link-open" target="_blank" style="display: none;" title="Open in browser">
+                                <i class="fas fa-external-link-alt"></i> Open
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <div>
+                            <small class="text-muted"><i class="far fa-clock me-1"></i> Time Remaining: </small>
+                            <strong class="font-monospace text-danger" id="compose-timer">--:--</strong>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-outline-success btn-sm me-1" id="compose-btn-renew" onclick="CTFd._internal.challenge.renewContainer()">
+                                <i class="fas fa-redo me-1"></i> Renew (<span id="compose-renews-left">0</span> left)
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="compose-btn-destroy" onclick="CTFd._internal.challenge.destroyContainer()">
+                                <i class="fas fa-stop me-1"></i> Destroy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

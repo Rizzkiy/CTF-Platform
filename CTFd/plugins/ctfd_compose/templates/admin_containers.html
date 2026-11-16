@@ -1,0 +1,194 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1><i class="fas fa-cubes me-2"></i> Compose Containers</h1>
+        <p class="lead">Monitor and manage live per-player dynamic docker compose instances.</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Active Instances</h5>
+                    <h2 class="text-primary mb-0" id="stat-active-count">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Detected Challenge Folders (in <code>/challenges</code>)</h5>
+                    <div id="detected-folders" class="d-flex flex-wrap gap-2">
+                        <span class="text-muted small">Scanning...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="fas fa-list me-2"></i> Running Container Instances</h5>
+            <button class="btn btn-outline-primary btn-sm" id="btn-refresh" onclick="loadContainers()">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle mb-0" id="containers-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Player</th>
+                            <th>Challenge</th>
+                            <th>Directory</th>
+                            <th>Host Port</th>
+                            <th>Dynamic Flag</th>
+                            <th>Expires In</th>
+                            <th>Renews</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="containers-body">
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">Loading containers...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function formatRemaining(secs) {
+    if (secs <= 0) return '<span class="badge bg-danger">Expired</span>';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `<span class="badge bg-success font-monospace">${m}m ${s}s</span>`;
+}
+
+function loadChallengeDirs() {
+    CTFd.fetch('/api/v1/plugins/ctfd_compose/admin/challenges-dirs', { method: 'GET' })
+    .then(r => r.json())
+    .then(res => {
+        const container = $('#detected-folders');
+        container.empty();
+        if (res.success && res.data && res.data.length > 0) {
+            res.data.forEach(d => {
+                container.append(`<span class="badge bg-secondary font-monospace px-2 py-1"><i class="fas fa-folder me-1"></i>${d}</span>`);
+            });
+        } else {
+            container.html('<span class="text-muted small">No challenge folders containing docker-compose.yml found in /challenges</span>');
+        }
+    });
+}
+
+function loadContainers() {
+    $('#btn-refresh').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Refreshing...');
+
+    CTFd.fetch('/api/v1/plugins/ctfd_compose/admin/containers', { method: 'GET' })
+    .then(r => r.json())
+    .then(res => {
+        $('#btn-refresh').prop('disabled', false).html('<i class="fas fa-sync-alt me-1"></i> Refresh');
+        const tbody = $('#containers-body');
+        tbody.empty();
+
+        if (res.success && res.data) {
+            $('#stat-active-count').text(res.data.length);
+
+            if (res.data.length === 0) {
+                tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted">No active containers running.</td></tr>');
+                return;
+            }
+
+            res.data.forEach(c => {
+                const tr = $(`
+                    <tr>
+                        <td><strong>#${c.id}</strong></td>
+                        <td>${c.username}</td>
+                        <td>${c.challenge_name}</td>
+                        <td><code>${c.compose_dir}</code></td>
+                        <td><span class="badge bg-dark font-monospace">${c.port}</span></td>
+                        <td><small class="font-monospace text-truncate d-inline-block" style="max-width: 160px;" title="${c.flag}">${c.flag}</small></td>
+                        <td>${formatRemaining(c.remaining_time)}</td>
+                        <td>${c.renew_count}</td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-warning me-1" title="Restart" onclick="actionRestart(${c.id})">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info me-1" title="Rebuild & Start" onclick="actionRebuild(${c.id})">
+                                <i class="fas fa-tools"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Stop & Destroy" onclick="actionDestroy(${c.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+                tbody.append(tr);
+            });
+        }
+    })
+    .catch(err => {
+        $('#btn-refresh').prop('disabled', false).html('<i class="fas fa-sync-alt me-1"></i> Refresh');
+        console.error(err);
+    });
+}
+
+function actionRestart(id) {
+    if (!confirm(`Restart container #${id}?`)) return;
+    CTFd.fetch('/api/v1/plugins/ctfd_compose/admin/containers/restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ container_id: id })
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.message);
+        loadContainers();
+    });
+}
+
+function actionRebuild(id) {
+    if (!confirm(`Rebuild (docker compose up -d --build) container #${id}? This may take a minute.`)) return;
+    CTFd.fetch('/api/v1/plugins/ctfd_compose/admin/containers/rebuild', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ container_id: id })
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.message);
+        loadContainers();
+    });
+}
+
+function actionDestroy(id) {
+    if (!confirm(`Force stop and delete container #${id}?`)) return;
+    CTFd.fetch('/api/v1/plugins/ctfd_compose/admin/containers', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ container_id: id })
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.message);
+        loadContainers();
+    });
+}
+
+$(document).ready(function() {
+    loadChallengeDirs();
+    loadContainers();
+    // Auto-refresh every 30 seconds
+    setInterval(loadContainers, 30000);
+});
+</script>
+{% endblock %}
